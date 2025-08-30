@@ -2208,7 +2208,6 @@ ${orderData.items ? orderData.items.map(item => `• ${item.name} - ₹${item.pr
         }
 
         // Initialize FCM and request permission
-        async function initializeAdminFCM() {
             try {
                 // Check if we have saved notification permission
                 const savedPermission = localStorage.getItem('notificationPermission');
@@ -2418,6 +2417,125 @@ ${orderData.items ? orderData.items.map(item => `• ${item.name} - ₹${item.pr
                 return true;
             } else {
                 return false;
+            }
+        }
+
+        // Initialize FCM and request permission
+        async function initializeAdminFCM() {
+            try {
+                // Check if we have saved notification permission
+                const savedPermission = localStorage.getItem('notificationPermission');
+                if (savedPermission) {
+                    console.log('Saved notification permission:', savedPermission);
+                }
+                
+                // Check if permission is already granted or denied
+                let permission = Notification.permission;
+                
+                // If permission is default (not asked yet), request it
+                if (permission === 'default') {
+                    permission = await Notification.requestPermission();
+                }
+                
+                // Save permission state to localStorage
+                localStorage.setItem('notificationPermission', permission);
+                
+                if (permission === 'granted') {
+                    console.log('Admin notification permission granted');
+                    
+                    // Check if we're on a supported protocol for FCM
+                    if (window.location.protocol === 'file:' || window.location.protocol === 'null') {
+                        console.log('FCM not supported on file:// protocol, skipping token generation');
+                        // Still save admin profile without FCM token
+                        if (auth.currentUser) {
+                            const adminProfileRef = ref(database, `admins/${auth.currentUser.uid}`);
+                            await set(adminProfileRef, {
+                                email: auth.currentUser.email,
+                                lastActive: Date.now(),
+                                fcmSupported: false
+                            });
+                        }
+                        return;
+                    }
+                    
+                    // Check if messaging is available and properly initialized
+                    if (!messaging) {
+                        console.log('Firebase messaging not available, skipping FCM token generation');
+                        if (auth.currentUser) {
+                            const adminProfileRef = ref(database, `admins/${auth.currentUser.uid}`);
+                            await set(adminProfileRef, {
+                                email: auth.currentUser.email,
+                                lastActive: Date.now(),
+                                fcmSupported: false
+                            });
+                        }
+                        return;
+                    }
+                    
+                    // Get FCM token only on supported protocols
+                    try {
+                        const token = await getToken(messaging, { vapidKey: VAPID_KEY });
+                        if (token) {
+                            console.log('Admin FCM Token:', token);
+                            
+                            // Save admin token to adminTokens/
+                            const adminId = auth.currentUser?.uid || 'admin_' + Date.now();
+                            const adminTokenRef = ref(database, `adminTokens/${adminId}`);
+                            await set(adminTokenRef, token);
+                            
+                            // Update admin profile with token
+                            if (auth.currentUser) {
+                                const adminProfileRef = ref(database, `admins/${auth.currentUser.uid}`);
+                                await set(adminProfileRef, {
+                                    email: auth.currentUser.email,
+                                    fcmToken: token,
+                                    lastActive: Date.now(),
+                                    fcmSupported: true
+                                });
+                            }
+                        }
+                    } catch (fcmError) {
+                        console.log('FCM token generation failed:', fcmError.message);
+                        
+                        // Check if it's a service worker registration issue
+                        if (fcmError.message.includes('service worker') || fcmError.message.includes('404')) {
+                            console.log('Service worker registration issue detected, FCM will be limited');
+                        }
+                        
+                        // Save admin profile without FCM token
+                        if (auth.currentUser) {
+                            const adminProfileRef = ref(database, `admins/${auth.currentUser.uid}`);
+                            await set(adminProfileRef, {
+                                email: auth.currentUser.email,
+                                lastActive: Date.now(),
+                                fcmSupported: false,
+                                fcmError: fcmError.message
+                            });
+                        }
+                    }
+                } else if (permission === 'denied') {
+                    console.log('Admin notification permission denied - user blocked it');
+                    // Show a message to user about enabling notifications
+                    showNotificationPermissionMessage();
+                } else {
+                    console.log('Admin notification permission not granted');
+                }
+            } catch (error) {
+                console.error('Error initializing admin FCM:', error);
+                // If FCM fails, still try to save admin profile without token
+                if (auth.currentUser) {
+                    try {
+                        const adminProfileRef = ref(database, `admins/${auth.currentUser.uid}`);
+                        await set(adminProfileRef, {
+                            email: auth.currentUser.email,
+                            lastActive: Date.now(),
+                            fcmSupported: false,
+                            fcmError: error.message
+                        });
+                    } catch (profileError) {
+                        console.error('Error saving admin profile:', profileError);
+                    }
+                }
             }
         }
 
