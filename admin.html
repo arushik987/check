@@ -1928,7 +1928,7 @@ Example: /update ORDER123 Processing`;
                 if (foundOrder.items && foundOrder.items.length > 0) {
                     message += `🛒 <b>Products:</b>\n`;
                     foundOrder.items.forEach((item, index) => {
-                        message += `${index + 1}. ${item.name} - ₹${item.price} x ${item.quantity}\n`;
+                        message += `${index + 1}. ${item.name} - ₹${item.price} x ${item.quantity || 1}\n`;
                     });
                 }
                 
@@ -2088,7 +2088,12 @@ Example: /update ORDER123 Processing`;
 ⏰ <b>Time:</b> ${new Date(orderData.date).toLocaleString('en-IN')}
 
 🛒 <b>Products:</b>
-${orderData.items ? orderData.items.map(item => `• ${item.name} - ₹${item.price} x ${item.quantity}`).join('\n') : 'No items'}`;
+${orderData.items ? orderData.items.map(item => `• ${item.name} - ₹${item.price} x ${item.quantity || 1}`).join('\n') : 'No items'}
+
+📱 <b>Quick Actions:</b>
+• /update ${orderData.orderId} Processing
+• /complete ${orderData.orderId}
+• /cancel ${orderData.orderId}`;
 
                 } else if (notificationType === 'status_update') {
                     emoji = '🔄';
