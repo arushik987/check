@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notification Test - Chaudhary Kirana Store</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔔 Notification System Test</h1>
+    <p>This page will help diagnose notification issues with your Chaudhary Kirana Store.</p>
+
+    <div class="test-section">
+        <h2>📱 Basic Notification Test</h2>
+        <p>Test if basic browser notifications work on your device:</p>
+        <button class="test-button" onclick="testBasicNotification()">Test Basic Notification</button>
+        <button class="test-button" onclick="requestPermission()">Request Permission</button>
+        <div id="basic-status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 Service Worker Test</h2>
+        <p>Check if service worker can be registered:</p>
+        <button class="test-button" onclick="testServiceWorker()">Test Service Worker</button>
+        <button class="test-button" onclick="checkServiceWorkerStatus()">Check Status</button>
+        <div id="sw-status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔥 Firebase FCM Test</h2>
+        <p>Test Firebase Cloud Messaging setup:</p>
+        <button class="test-button" onclick="testFirebase()">Test Firebase</button>
+        <button class="test-button" onclick="testFCM()">Test FCM</button>
+        <div id="firebase-status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📋 Current Status</h2>
+        <div id="current-status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📝 Console Log</h2>
+        <div id="console-log" class="log"></div>
+        <button class="test-button" onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <script>
+        // Console logging function
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('console-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            logEntry.className = `status ${type}`;
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function clearLog() {
+            document.getElementById('console-log').innerHTML = '';
+        }
+
+        // Test basic notifications
+        function testBasicNotification() {
+            const statusDiv = document.getElementById('basic-status');
+            
+            if (Notification.permission === 'granted') {
+                try {
+                    const notification = new Notification('Test Notification', {
+                        body: 'This is a test notification from Chaudhary Kirana Store',
+                        icon: '/favicon.ico',
+                        tag: 'test-notification'
+                    });
+                    
+                    statusDiv.innerHTML = '<div class="status success">✅ Basic notification sent successfully!</div>';
+                    log('✅ Basic notification sent successfully!', 'success');
+                    
+                    // Auto-close after 5 seconds
+                    setTimeout(() => notification.close(), 5000);
+                } catch (error) {
+                    statusDiv.innerHTML = `<div class="status error">❌ Error sending notification: ${error.message}</div>`;
+                    log(`❌ Error sending notification: ${error.message}`, 'error');
+                }
+            } else {
+                statusDiv.innerHTML = `<div class="status error">❌ Notification permission not granted. Current status: ${Notification.permission}</div>`;
+                log(`❌ Notification permission not granted. Current status: ${Notification.permission}`, 'error');
+            }
+        }
+
+        // Request notification permission
+        function requestPermission() {
+            const statusDiv = document.getElementById('basic-status');
+            
+            if (Notification.permission === 'default') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        statusDiv.innerHTML = '<div class="status success">✅ Notification permission granted!</div>';
+                        log('✅ Notification permission granted!', 'success');
+                    } else {
+                        statusDiv.innerHTML = `<div class="status error">❌ Notification permission denied: ${permission}</div>`;
+                        log(`❌ Notification permission denied: ${permission}`, 'error');
+                    }
+                });
+            } else {
+                statusDiv.innerHTML = `<div class="status info">ℹ️ Current permission status: ${Notification.permission}</div>`;
+                log(`ℹ️ Current permission status: ${Notification.permission}`, 'info');
+            }
+        }
+
+        // Test service worker registration
+        function testServiceWorker() {
+            const statusDiv = document.getElementById('sw-status');
+            
+            if ('serviceWorker' in navigator) {
+                log('🔧 Testing service worker registration...', 'info');
+                
+                navigator.serviceWorker.register('./firebase-messaging-sw.js')
+                    .then(registration => {
+                        statusDiv.innerHTML = '<div class="status success">✅ Service worker registered successfully!</div>';
+                        log('✅ Service worker registered successfully!', 'success');
+                        log(`Service Worker Scope: ${registration.scope}`, 'info');
+                    })
+                    .catch(error => {
+                        statusDiv.innerHTML = `<div class="status error">❌ Service worker registration failed: ${error.message}</div>`;
+                        log(`❌ Service worker registration failed: ${error.message}`, 'error');
+                    });
+            } else {
+                statusDiv.innerHTML = '<div class="status error">❌ Service Worker not supported in this browser</div>';
+                log('❌ Service Worker not supported in this browser', 'error');
+            }
+        }
+
+        // Check service worker status
+        function checkServiceWorkerStatus() {
+            const statusDiv = document.getElementById('sw-status');
+            
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                if (registrations.length === 0) {
+                    statusDiv.innerHTML = '<div class="status info">ℹ️ No service workers registered</div>';
+                    log('ℹ️ No service workers registered', 'info');
+                } else {
+                    let statusHTML = '<div class="status success">✅ Service Workers Found:</div>';
+                    registrations.forEach((registration, index) => {
+                        statusHTML += `<div style="margin-left: 20px; margin-top: 5px;">
+                            <strong>SW ${index + 1}:</strong> ${registration.active ? 'Active' : 'Inactive'} - ${registration.scope}
+                        </div>`;
+                        log(`Service Worker ${index + 1}: ${registration.active ? 'Active' : 'Inactive'} - ${registration.scope}`, 'info');
+                    });
+                    statusDiv.innerHTML = statusHTML;
+                }
+            });
+        }
+
+        // Test Firebase availability
+        function testFirebase() {
+            const statusDiv = document.getElementById('firebase-status');
+            
+            // Check if Firebase is loaded
+            if (typeof firebase !== 'undefined') {
+                statusDiv.innerHTML = '<div class="status success">✅ Firebase is loaded</div>';
+                log('✅ Firebase is loaded', 'success');
+                
+                // Check Firebase config
+                try {
+                    const app = firebase.app();
+                    log(`Firebase App: ${app.name}`, 'info');
+                    log(`Firebase Options: ${JSON.stringify(app.options)}`, 'info');
+                } catch (error) {
+                    log(`Firebase App Error: ${error.message}`, 'error');
+                }
+            } else {
+                statusDiv.innerHTML = '<div class="status error">❌ Firebase is not loaded</div>';
+                log('❌ Firebase is not loaded', 'error');
+            }
+        }
+
+        // Test FCM
+        function testFCM() {
+            const statusDiv = document.getElementById('firebase-status');
+            
+            if (typeof firebase !== 'undefined' && firebase.messaging) {
+                log('🔥 Testing FCM...', 'info');
+                
+                try {
+                    const messaging = firebase.messaging();
+                    log('✅ FCM messaging object created', 'success');
+                    
+                    // Check if we can get a token
+                    messaging.getToken({ vapidKey: 'BBFeIMCAfLWcKzaYe4I6jXtVsR61Vu5tl5M7ZPF6BYkeeJ8XsybOnWF2dANauR-LaVzxoLo3F_AZUK8vg7AlBMc' })
+                        .then(token => {
+                            if (token) {
+                                statusDiv.innerHTML = '<div class="status success">✅ FCM token generated successfully!</div>';
+                                log('✅ FCM token generated successfully!', 'success');
+                                log(`Token: ${token.substring(0, 50)}...`, 'info');
+                            } else {
+                                statusDiv.innerHTML = '<div class="status error">❌ No FCM token received</div>';
+                                log('❌ No FCM token received', 'error');
+                            }
+                        })
+                        .catch(error => {
+                            statusDiv.innerHTML = `<div class="status error">❌ FCM token generation failed: ${error.message}</div>`;
+                            log(`❌ FCM token generation failed: ${error.message}`, 'error');
+                        });
+                } catch (error) {
+                    statusDiv.innerHTML = `<div class="status error">❌ Error creating FCM messaging: ${error.message}</div>`;
+                    log(`❌ Error creating FCM messaging: ${error.message}`, 'error');
+                }
+            } else {
+                statusDiv.innerHTML = '<div class="status error">❌ FCM not available</div>';
+                log('❌ FCM not available', 'error');
+            }
+        }
+
+        // Update current status
+        function updateCurrentStatus() {
+            const statusDiv = document.getElementById('current-status');
+            
+            let statusHTML = '<div class="status info">';
+            statusHTML += `<strong>Current Status:</strong><br>`;
+            statusHTML += `• Notification Permission: ${Notification.permission}<br>`;
+            statusHTML += `• Service Worker Support: ${'serviceWorker' in navigator ? 'Yes' : 'No'}<br>`;
+            statusHTML += `• Firebase Loaded: ${typeof firebase !== 'undefined' ? 'Yes' : 'No'}<br>`;
+            statusHTML += `• Protocol: ${window.location.protocol}<br>`;
+            statusHTML += `• Hostname: ${window.location.hostname}<br>`;
+            statusHTML += `• User Agent: ${navigator.userAgent.substring(0, 50)}...`;
+            statusHTML += '</div>';
+            
+            statusDiv.innerHTML = statusHTML;
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            log('🚀 Notification test page loaded', 'info');
+            updateCurrentStatus();
+            
+            // Auto-update status every 5 seconds
+            setInterval(updateCurrentStatus, 5000);
+        });
+    </script>
+</body>
+</html>
